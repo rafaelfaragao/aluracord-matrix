@@ -84,7 +84,7 @@ export default function PaginaInicial() {
             width: '100%', maxWidth: '700px',
             borderRadius: '5px', padding: '32px', margin: '16px',
             boxShadow: '0 2px 10px 0 rgb(0 0 0 / 20%)',
-            backgroundColor: appConfig.theme.colors.neutrals[700],
+            backgroundColor: appConfig.theme.colors.neutrals[600],
           }}
         >
           {/* Formulário */}
@@ -102,12 +102,13 @@ export default function PaginaInicial() {
 
             <TextField
               fullWidth
+              styleSheet={{ marginBottom: '8px'}}
               textFieldColors={{
                 neutral: {
                   textColor: appConfig.theme.colors.neutrals[200],
                   mainColor: appConfig.theme.colors.neutrals[900],
                   mainColorHighlight: appConfig.theme.colors.primary[500],
-                  backgroundColor: appConfig.theme.colors.neutrals[800],
+                  backgroundColor: appConfig.theme.colors.neutrals[900],
                 },
               }}
             />
