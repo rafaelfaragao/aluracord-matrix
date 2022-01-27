@@ -3,9 +3,9 @@ import React from 'react';
 import { useRouter } from 'next/router'
 import { Box, Button, Text, TextField, Image } from '@skynexui/components';
 
-function Titulo(props){
+function Titulo(props) {
   const Tag = props.tag || 'h1';
-  return(
+  return (
     <>
       <Tag>{props.children}</Tag>
       <style jsx>{`
@@ -64,10 +64,14 @@ export default function PaginaInicial() {
           {/* Formulário */}
           <Box
             as="form"
-            onSubmit={function(event){
+            onSubmit={function (event) {
               event.preventDefault();
               console.log('Form Submitted')
-              roteamento.push('/chat')
+
+              roteamento.push({
+                pathname: '/chat',
+                query: { user: username }
+              })
               //jeito de fazer se fosse uma página simples em HTML/CSS/JS
               //window.location.href = '/chat'
             }}
@@ -95,7 +99,7 @@ export default function PaginaInicial() {
             /> */}
             <TextField
               value={username}
-              onChange={function(event){
+              onChange={function (event) {
                 //mostrar o valor que o usuario está digitando
                 console.log('usuario digitou', event.target.value);
                 //colocar o valor em uma variavel
@@ -104,7 +108,7 @@ export default function PaginaInicial() {
                 setUsername(valor);
               }}
               fullWidth
-              styleSheet={{ marginBottom: '8px'}}
+              styleSheet={{ marginBottom: '8px' }}
               textFieldColors={{
                 neutral: {
                   textColor: appConfig.theme.colors.neutrals[200],
