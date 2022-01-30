@@ -2,8 +2,13 @@ import appConfig from "../config.json";
 import React from "react";
 import { useRouter } from "next/router";
 import { Box, Button, Text, TextField, Image, Icon } from "@skynexui/components";
+import { createClient } from '@supabase/supabase-js'
 
+//process.env para usar variaveis locais
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMzNDc3MywiZXhwIjoxOTU4OTEwNzczfQ.yKM-1h28KB_k1_5MLZ_yNn7EfHsDVs_C4h9k6X6Pv10'
+const SUPABASE_URL = 'https://sbychpthbhpcmygmbudy.supabase.co'
 
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 export default function PaginaDoChat() {
   //Usuario
@@ -17,19 +22,50 @@ export default function PaginaDoChat() {
   - [] Vamos usar o onChange usa o useState (ter if para caso seja enter pra limpar a variavel)
   - [] Lista de mensagens
   */
+
+  const [mensagem, setMensagem] = React.useState("");
+  const [listaDeMensagens, setListaDeMensagens] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+
   const respostaDaRota = useRouter();
   const user = respostaDaRota.query.user;
   //console.log(user);
 
-  const [mensagem, setMensagem] = React.useState("");
-  const [listaDeMensagens, setListaDeMensagens] = React.useState([]);
+  React.useEffect(() => {
+    setLoading(true)
+    supabaseClient
+      .from('mensagens')
+      .select('*')
+      .order('id', { ascending: false })
+      .then(({ data }) => {
+        //console.log("Dados da consulta: ", data);
+        setTimeout(() => {
+          setListaDeMensagens(data);
+          setLoading(false)
+        }, 1500)
+      })
+  }, []);
 
   function handleNovaMensagem(usuario, novaMensagem) {
     const mensagem = {
-      id: listaDeMensagens.length + 1,
+      //id: listaDeMensagens.length + 1,
       de: usuario,
       texto: novaMensagem,
     };
+
+    supabaseClient
+      .from('mensagens')
+      .insert([
+        mensagem
+      ])
+      .then(({ data }) => {
+        console.log('Criando mensagem: ', data);
+        setListaDeMensagens([
+          data[0],
+          ...listaDeMensagens,
+        ]);
+      });
+
     setListaDeMensagens([
       mensagem,
       ...listaDeMensagens,
@@ -38,10 +74,47 @@ export default function PaginaDoChat() {
     setMensagem("");
   }
 
-  function handleExcluirMensagem(id) {
-    const listaSemAMensagem = listaDeMensagens.filter(excluida => excluida.id !== id)
+  function handleExcluirMensagem(messageId) {
+    //const listaSemAMensagem = listaDeMensagens.filter(excluida => excluida.id !== id)
+    //setListaDeMensagens(listaSemAMensagem)
+    supabaseClient
+      .from('mensagens')
+      .delete()
+      .match({ id: messageId }).then((dataE) => {
+        console.log("Mensagem deletada: ", dataE.data[0]);
 
-    setListaDeMensagens(listaSemAMensagem)
+
+        supabaseClient
+          .from('mensagens')
+          .select('*')
+          .order('id', { ascending: false })
+          .then(({ data }) => {
+            //console.log("Dados da consulta: ", data);
+            setListaDeMensagens(data);
+          });
+        testeDeSistema()
+      });
+
+  }
+
+  function testeDeSistema() {
+    console.log("Funcionou")
+  }
+
+  function Loader() {
+    return (
+      <>
+        Loading messages...
+        <Image
+          styleSheet={{
+            animation: "1.5s",
+            width: "100%",
+            height: "90%",
+
+          }}
+          src={'https://ps.w.org/matrix-pre-loader/assets/screenshot-4.gif'} />
+      </>
+    )
   }
 
   return (
@@ -86,6 +159,7 @@ export default function PaginaDoChat() {
               padding: "16px",
             }}
           >
+            {loading && Loader()}
             <MessageList mensagens={listaDeMensagens} excluirMensagem={handleExcluirMensagem} />
 
             {/* {listaDeMensagens.map((mensagemAtual) => {
@@ -177,7 +251,8 @@ function Header() {
 }
 
 function MessageList(props) {
-  console.log(props);
+  //console.log(props);
+
   return (
     <Box
       tag="ul"
@@ -191,6 +266,7 @@ function MessageList(props) {
       }}
     >
       {props.mensagens.map((mensagem) => {
+
         return (
           <Text
             key={mensagem.id}
@@ -224,6 +300,10 @@ function MessageList(props) {
                     borderRadius: "50%",
                     display: "inline-block",
                     marginRight: "8px",
+                    hover: {
+                      width: "40px",
+                      height: "40px",
+                    }
                   }}
                   src={`https://github.com/${mensagem.de}.png`}
                 />
