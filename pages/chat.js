@@ -1,14 +1,32 @@
 import appConfig from "../config.json";
-import React from "react";
+import React, { useCallback } from "react";
 import { useRouter } from "next/router";
 import { Box, Button, Text, TextField, Image, Icon } from "@skynexui/components";
 import { createClient } from '@supabase/supabase-js'
+import { ButtonSendSticker } from '../src/components/ButtonSendSticker'
 
 //process.env para usar variaveis locais
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MzMzNDc3MywiZXhwIjoxOTU4OTEwNzczfQ.yKM-1h28KB_k1_5MLZ_yNn7EfHsDVs_C4h9k6X6Pv10'
 const SUPABASE_URL = 'https://sbychpthbhpcmygmbudy.supabase.co'
 
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+function messagensEmTempoReal(setListaDeMensagens) {
+  return supabaseClient
+    .from('mensagens')
+    .on('*', payload => {
+      console.log("O que aconteceu:", payload)
+      let bosta = supabaseClient
+        .from('mensagens')
+        .select('*')
+        .order('id', { ascending: false })
+        .then(({ data }) => {
+          console.log("Dados da consulta: ", data)
+          setListaDeMensagens(data)
+        })
+      return bosta
+    }).subscribe()
+}
 
 export default function PaginaDoChat() {
   //Usuario
@@ -19,17 +37,19 @@ export default function PaginaDoChat() {
 
   // Dev
   - [x] Campo criado
-  - [] Vamos usar o onChange usa o useState (ter if para caso seja enter pra limpar a variavel)
-  - [] Lista de mensagens
+  - [x] Vamos usar o onChange usa o useState (ter if para caso seja enter pra limpar a variavel)
+  - [x] Lista de mensagens
   */
+  const respostaDaRota = useRouter();
+  const usuarioLogado = respostaDaRota.query.user;
+  const [usuario, setUsuario] = React.useState([])
+
+  const [loading, setLoading] = React.useState(false);
 
   const [mensagem, setMensagem] = React.useState("");
   const [listaDeMensagens, setListaDeMensagens] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
 
-  const respostaDaRota = useRouter();
-  const user = respostaDaRota.query.user;
-  //console.log(user);
+  //console.log(usuarioLogado);
 
   React.useEffect(() => {
     setLoading(true)
@@ -43,13 +63,24 @@ export default function PaginaDoChat() {
           setListaDeMensagens(data);
           setLoading(false)
         }, 1500)
-      })
+      });
+
+    messagensEmTempoReal(setListaDeMensagens)
+
   }, []);
 
-  function handleNovaMensagem(usuario, novaMensagem) {
+  React.useEffect(() => {
+    fetch(`https://api.github.com/users/${usuarioLogado}`)
+      .then(response => response.json())
+      .then(data => setUsuario(data))
+
+    console.log(usuarioLogado)
+  }, [usuarioLogado])
+
+  function handleNovaMensagem(novaMensagem) {
     const mensagem = {
       //id: listaDeMensagens.length + 1,
-      de: usuario,
+      de: usuarioLogado,
       texto: novaMensagem,
     };
 
@@ -59,47 +90,42 @@ export default function PaginaDoChat() {
         mensagem
       ])
       .then(({ data }) => {
-        console.log('Criando mensagem: ', data);
-        setListaDeMensagens([
-          data[0],
-          ...listaDeMensagens,
-        ]);
+        console.log('Criando mensagem nova: ', data);
+        // setListaDeMensagens([
+        //   data[0],
+        //   ...listaDeMensagens,
+        // ]);
       });
-
-    setListaDeMensagens([
-      mensagem,
-      ...listaDeMensagens,
-    ]);
 
     setMensagem("");
   }
 
   function handleExcluirMensagem(messageId) {
-    //const listaSemAMensagem = listaDeMensagens.filter(excluida => excluida.id !== id)
-    //setListaDeMensagens(listaSemAMensagem)
+
     supabaseClient
       .from('mensagens')
       .delete()
-      .match({ id: messageId }).then((dataE) => {
-        console.log("Mensagem deletada: ", dataE.data[0]);
-
-
-        supabaseClient
-          .from('mensagens')
-          .select('*')
-          .order('id', { ascending: false })
-          .then(({ data }) => {
-            //console.log("Dados da consulta: ", data);
-            setListaDeMensagens(data);
-          });
-        testeDeSistema()
+      .match({ id: messageId }).then(() => {
+        //console.log("Mensagem deletada: ", dataE.data[0], messageId);
+        //const listaSemAMensagem = listaDeMensagens.filter(excluida => excluida.id !== messageId)
+        //setListaDeMensagens(listaSemAMensagem)
       });
 
   }
 
   function testeDeSistema() {
-    console.log("Funcionou")
+    //console.log("Funcionou")
+    supabaseClient
+      .from('mensagens')
+      .select('*')
+      .order('id', { ascending: false })
+      .then(({ dataList }) => {
+        console.log("Dados da consulta: ", dataList);
+        return dataList
+      });
   }
+
+  //testeDeSistema()
 
   function Loader() {
     return (
@@ -146,7 +172,7 @@ export default function PaginaDoChat() {
             padding: "32px",
           }}
         >
-          <Header />
+          <Header user={usuario} />
           <Box
             styleSheet={{
               position: "relative",
@@ -186,7 +212,7 @@ export default function PaginaDoChat() {
                 onKeyPress={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
-                    handleNovaMensagem(user, mensagem);
+                    handleNovaMensagem(mensagem);
                   }
                 }}
                 placeholder="Insira sua mensagem aqui..."
@@ -202,6 +228,13 @@ export default function PaginaDoChat() {
                   color: appConfig.theme.colors.neutrals[200],
                 }}
               />
+
+              <ButtonSendSticker
+                onStickerClick={(sticker) => {
+                  handleNovaMensagem(`:sticker: ${sticker}`);
+                }}
+              />
+
               <Button
                 type="button"
                 label="OK"
@@ -215,9 +248,10 @@ export default function PaginaDoChat() {
                   padding: "12px",
                 }}
                 onClick={() => {
-                  handleNovaMensagem(user, mensagem)
+                  handleNovaMensagem(mensagem)
                 }}
               />
+
             </Box>
           </Box>
         </Box>
@@ -226,7 +260,8 @@ export default function PaginaDoChat() {
   );
 }
 
-function Header() {
+function Header(props) {
+
   return (
     <>
       <Box
@@ -237,8 +272,30 @@ function Header() {
           alignItems: "center",
           justifyContent: "space-between",
         }}
+
       >
-        <Text variant="heading5">Chat</Text>
+        <Box
+          styleSheet={{
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {props ?
+            <>
+              <Text variant="heading5">Chat: Aluracord - {props.user["name"]}</Text>
+              <Text
+                styleSheet={{
+                  color: appConfig.theme.colors.primary["500"]
+                }}
+              >
+                Login: {props.user["login"]} - Localidade: {props.user["location"]}
+              </Text>
+            </> :
+            <>
+              <Text variant="heading5">Chat: Aluracord</Text>
+            </>}
+        </Box>
+
         <Button
           variant="tertiary"
           colorVariant="neutral"
@@ -335,7 +392,16 @@ function MessageList(props) {
                 }}
               />
             </Box>
-            {mensagem.texto}
+            {mensagem.texto.startsWith(':sticker:')
+              ? <Image
+                styleSheet={{
+                  masWidth: "100px",
+                  maxHeight: "100px",
+
+                }}
+                src={mensagem.texto.replace(':sticker:', '')} /> //true
+              : (mensagem.texto) //false
+            }
           </Text>
         );
       })}
